@@ -1,7 +1,5 @@
-from typing import Optional
-
+from typing import Optional, List, Callable
 import requests
-
 
 class Reels:
 
@@ -9,8 +7,8 @@ class Reels:
         self.user_id = user_id
         self.page_size = page_size
         self.max_id = max_id
-        self.next_max_id = None
-
+        self._next_max_id : Optional[str] = None
+        self._more_available : bool = True
         self.session = requests.Session()
         self.session.headers.update({
             'authority': 'www.instagram.com',
@@ -27,6 +25,7 @@ class Reels:
         })
 
         self.session.get("https://www.instagram.com/")
+    
 
     @property
     def __csrf_token(self):
@@ -51,8 +50,16 @@ class Reels:
         else:
             raise Exception("Error while getting reel tray")
 
-    def __parse_reel_tray(self, data):
-        self.next_max_id = data['paging_info']['max_id']
+    def __parse_reel_tray(self, data : dict) -> list:
+        if data['status'] != 'ok':
+            raise Exception("Error while parsing reel tray")
+
+        if data['paging_info']['more_available'] is False:
+            self._more_available = False
+        else:
+            self._next_max_id = data['paging_info']['max_id']
+
+
         return data['items']
 
     def get_reels(self):
@@ -60,23 +67,39 @@ class Reels:
         return self.__parse_reel_tray(data)
 
     def get_next_reels(self):
-        if self.next_max_id is None:
-            return self.get_reels()
-
-        self.max_id = self.next_max_id
+        if self._more_available is False:
+            return []
+        
+        self.max_id = self._next_max_id
         return self.get_reels()
 
-    def get_all_reels(self):
+    def get_all_reels(self, filter_func : Optional[callable] = None):
         while True:
             reels = self.get_next_reels()
             if len(reels) == 0:
                 break
+
+            if filter_func is not None:
+                reels = filter_func(reels)
+
             yield from reels
+
+
         
 
 
 
 if __name__ == "__main__":
-    reels = Reels("7585796840", page_size=12)
-    for reel in reels.get_all_reels():
+
+    def filter_like_count(reels : List[dict], like_count : int):
+        _reels = []
+        for reel in reels:
+            if reel['media']['like_count'] >= like_count:
+                _reels.append(reel)
+        return _reels
+    
+
+
+    reels = Reels("7585796840", page_size=30)
+    for reel in reels.get_all_reels(filter_func=lambda reels: filter_like_count(reels, 1000)):
         print(reel)

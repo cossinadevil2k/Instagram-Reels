@@ -1,5 +1,6 @@
-from typing import Optional, List
+from typing import Optional, List, Dict
 import requests
+import json
 
 class Reels:
 
@@ -119,23 +120,26 @@ class Reels:
         self.max_id = self._next_max_id
         return self.get_reels()
 
-    def get_all_reels(self, filter_func: Optional[callable] = None):
+    def get_all_reels(self, filter_funcs: Optional[List[callable]] = None):
+
         """
         Lấy tất cả các reel, có thể được lọc bởi một hàm điều kiện nếu được chỉ định.
 
         Args:
-        - filter_func (Optional[callable]): Hàm lọc dùng để lọc danh sách reel. Mặc định là None.
+        - filter_funcs (Optional[List[callable]]): Danh sách các hàm điều kiện.
 
-        Yields:
-        - dict: Các reel thỏa mãn điều kiện lọc.
+        Returns:
+        - Generator: Generator chứa các reel.
         """
         while True:
             reels = self.get_next_reels()
             if len(reels) == 0:
                 break
 
-            if filter_func is not None:
-                reels = filter_func(reels)
+            if filter_funcs is not None:
+                for filter_func in filter_funcs:
+                    reels = filter_func(reels)
+                
 
             yield from reels
 
@@ -158,7 +162,33 @@ if __name__ == "__main__":
                 _reels.append(reel)
         return _reels
 
-    # Sử dụng đối tượng Reels để lấy và in các reel thỏa mãn điều kiện
+
+
+    #filter text , like_count, play_count, code
+    def filter_data(reels: List[dict]):
+        """
+        Hàm lọc reel theo số lượt thích, số lượt xem và caption, code.
+        """
+        _reels = []
+        for reel in reels:
+            caption = reel['media'].get('caption', {}).get('text', '')
+            like_count = reel['media'].get('like_count', 0)
+            play_count = reel['media'].get('play_count', 0)
+            code = reel['media'].get('code', '')
+            _reels.append({
+                'caption': caption,
+                'like_count': like_count,
+                'play_count': play_count,
+                'code': code
+            })
+
+        return _reels
+    
+    
+
     reels = Reels("7585796840", page_size=30)
-    for reel in reels.get_all_reels(filter_func=lambda reels: filter_like_count(reels, 1000)):
+    for reel in reels.get_all_reels(filter_funcs=[
+        lambda reels: filter_like_count(reels, 1000),
+        lambda reels: filter_data(reels)
+]):
         print(reel)

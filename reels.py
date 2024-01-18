@@ -171,24 +171,29 @@ if __name__ == "__main__":
         """
         _reels = []
         for reel in reels:
-            caption = reel['media'].get('caption', {}).get('text', '')
-            like_count = reel['media'].get('like_count', 0)
-            play_count = reel['media'].get('play_count', 0)
-            code = reel['media'].get('code', '')
-            _reels.append({
-                'caption': caption,
-                'like_count': like_count,
-                'play_count': play_count,
-                'code': code
-            })
+            try:
+                caption = reel['media'].get('caption')
+                if caption is not None:
+                    caption = caption['text']
+                like_count = reel['media'].get('like_count', 0)
+                play_count = reel['media'].get('play_count', 0)
+                code = reel['media'].get('code', '')
+                _reels.append({
+                    'caption': caption,
+                    'like_count': like_count,
+                    'play_count': play_count,
+                    'code': code
+                })
+            except:
+                open('error.json', 'a').write(json.dumps(reel, indent=4))
 
         return _reels
     
     
 
-    reels = Reels("7585796840", page_size=30)
+    reels = Reels("31051275986", page_size=30)
     for reel in reels.get_all_reels(filter_funcs=[
         lambda reels: filter_like_count(reels, 1000),
         lambda reels: filter_data(reels)
 ]):
-        print(reel)
+        pass
